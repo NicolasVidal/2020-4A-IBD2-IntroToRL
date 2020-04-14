@@ -301,3 +301,94 @@ def tabular_td_zero_prediction(
             s = s_p
             step += 1
     return V
+
+
+def tabular_sarsa_control(
+        states_count: int,
+        actions_count: int,
+        reset_func: Callable,
+        step_func: Callable,
+        is_terminal_func: Callable,
+        max_episodes: int = 10000,
+        max_steps_per_episode: int = 10,
+        gamma: float = 0.99,
+        alpha: float = 0.01,
+        epsilon: float = 0.75
+) -> (np.ndarray, np.ndarray):
+    states = np.arange(states_count)
+    actions = np.arange(actions_count)
+
+    Q = np.random.random((states_count, actions_count))
+    pi = np.random.random((states_count, actions_count))
+
+    for s in states:
+        if is_terminal_func(s):
+            Q[s, :] = 0.
+            pi[s, :] = 0.
+
+    for episode_id in range(max_episodes):
+        s = reset_func()
+        step = 0
+        rdm = np.random.random()
+        a = np.random.choice(actions) if rdm < epsilon else np.argmax(Q[s, :])
+
+        while not is_terminal_func(s) and step < max_steps_per_episode:
+            (s_p, r, t) = step_func(s, a)
+            rdm = np.random.random()
+            a_p = np.random.choice(actions) if rdm < epsilon else np.argmax(Q[s_p, :])
+            Q[s, a] += alpha * (r + gamma * Q[s_p, a_p] - Q[s, a])
+            s = s_p
+            a = a_p
+            step += 1
+
+    for s in states:
+        if is_terminal_func(s):
+            pi[s, :] = 0.
+        pi[s, :] = epsilon / actions_count
+        pi[s, np.argmax(Q[s, :])] = 1 - epsilon + epsilon / actions_count
+
+    return Q, pi
+
+
+def tabular_q_learning_control(
+        states_count: int,
+        actions_count: int,
+        reset_func: Callable,
+        step_func: Callable,
+        is_terminal_func: Callable,
+        max_episodes: int = 10000,
+        max_steps_per_episode: int = 10,
+        gamma: float = 0.99,
+        alpha: float = 0.01,
+        epsilon: float = 0.75
+) -> (np.ndarray, np.ndarray):
+    states = np.arange(states_count)
+    actions = np.arange(actions_count)
+
+    Q = np.random.random((states_count, actions_count))
+    pi = np.random.random((states_count, actions_count))
+
+    for s in states:
+        if is_terminal_func(s):
+            Q[s, :] = 0.
+            pi[s, :] = 0.
+
+    for episode_id in range(max_episodes):
+        s = reset_func()
+        step = 0
+
+        while not is_terminal_func(s) and step < max_steps_per_episode:
+            rdm = np.random.random()
+            a = np.random.choice(actions) if rdm < epsilon else np.argmax(Q[s, :])
+            (s_p, r, t) = step_func(s, a)
+            Q[s, a] += alpha * (r + gamma * np.max(Q[s_p, :]) - Q[s, a])
+            s = s_p
+            step += 1
+
+    for s in states:
+        if is_terminal_func(s):
+            pi[s, :] = 0.
+        pi[s, :] = 0.0
+        pi[s, np.argmax(Q[s, :])] = 1.0
+
+    return Q, pi
